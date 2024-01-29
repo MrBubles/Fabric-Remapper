@@ -144,7 +144,7 @@ public class Main {
         try {
             return optionSet.valueOf(optionSpec);
         } catch (Throwable throwable) {
-            Main.print("Error during getting option: " + throwable.getMessage(), true);
+            print("Error during getting option: " + throwable.getMessage(), true);
             return null;
         }
     }
