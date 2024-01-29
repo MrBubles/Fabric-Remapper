@@ -16,6 +16,6 @@ To run the program, you have two options:
 
 - GUI: Double-click the jar file. A GUI will appear, where you can select the input and output
   files and the minecraft version.
-- CLI: Run `java -jar Fabric-Remapper.jar --input <input jar> --output <output jar> --minecraftVersion <minecraft version>` in the terminal.
+- CLI: Run `java -jar Fabric-Remapper.jar --input <input jar> --output <output jar> --minecraftVersion <minecraft version>` in the terminal, or run `start.cmd`.
 
 Wait until the program finishes remapping. The output file will be saved in the specified location.
