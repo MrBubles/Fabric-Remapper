@@ -1,4 +1,4 @@
-package dev.hunter.deobf;
+package me.mrbubbles.fabricremapper;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -29,7 +29,6 @@ public class RemapUtil {
             while ((entry = inputZip.getNextEntry()) != null) {
                 String entryName = entry.getName();
 
-                //Remember other files
                 if (!entryName.endsWith(".class")) {
                     tempOutputZip.putNextEntry(new ZipEntry(entryName));
                     byte[] buffer = readStream(inputZip);
@@ -38,10 +37,9 @@ public class RemapUtil {
                     continue;
                 }
 
-                byte[] classBytes = readStream(inputZip); //Read current class
-                byte[] remappedBytes = remapClass(classBytes, mappings); //Remap current class
+                byte[] classBytes = readStream(inputZip);
+                byte[] remappedBytes = remapClass(classBytes, mappings);
 
-                //Remember modified class
                 tempOutputZip.putNextEntry(new ZipEntry(entryName));
                 tempOutputZip.write(remappedBytes);
                 tempOutputZip.closeEntry();
@@ -90,8 +88,7 @@ public class RemapUtil {
         for (MethodNode method : classNode.methods) {
             InsnList list = method.instructions;
             Arrays.stream(list.toArray()).parallel().forEach(currentInsn -> {
-                if (currentInsn instanceof MethodInsnNode) {
-                    MethodInsnNode methodInsnNode = (MethodInsnNode) currentInsn;
+                if (currentInsn instanceof MethodInsnNode methodInsnNode) {
 
                     String ownerName = methodInsnNode.owner.substring(methodInsnNode.owner.lastIndexOf('/') + 1);
                     if (mappings.containsKey(ownerName)) {
@@ -100,13 +97,11 @@ public class RemapUtil {
                         methodInsnNode.owner = ownerDir + mappings.get(ownerName);
                     }
 
-                    //Detect nasty method
                     if (mappings.containsKey(methodInsnNode.name)) {
                         System.out.println("Find nasty method call. Renaming \"" + methodInsnNode.name + "\" to \"" + mappings.get(methodInsnNode.name) + "\"");
                         methodInsnNode.name = mappings.get(methodInsnNode.name);
                     }
-                } else if (currentInsn instanceof FieldInsnNode) {
-                    FieldInsnNode fieldInsnNode = (FieldInsnNode) currentInsn;
+                } else if (currentInsn instanceof FieldInsnNode fieldInsnNode) {
 
                     String ownerName = fieldInsnNode.owner.substring(fieldInsnNode.owner.lastIndexOf('/') + 1);
                     if (mappings.containsKey(ownerName)) {
@@ -115,15 +110,12 @@ public class RemapUtil {
                         fieldInsnNode.owner = ownerDir + mappings.get(ownerName);
                     }
 
-                    //Detect nasty field
                     if (mappings.containsKey(fieldInsnNode.name)) {
                         System.out.println("Find nasty field call. Renaming \"" + fieldInsnNode.name + "\" to \"" + mappings.get(fieldInsnNode.name) + "\"");
                         fieldInsnNode.name = mappings.get(fieldInsnNode.name);
                     }
-                } else if (currentInsn instanceof InvokeDynamicInsnNode) {
-                    InvokeDynamicInsnNode dynamicInsnNode = (InvokeDynamicInsnNode) currentInsn;
+                } else if (currentInsn instanceof InvokeDynamicInsnNode dynamicInsnNode) {
 
-                    //Detect nasty invoke dynamic
                     if (mappings.containsKey(dynamicInsnNode.name)) {
                         System.out.println("Find nasty invoke dynamic. Renaming \"" + dynamicInsnNode.name + "\" to \"" + mappings.get(dynamicInsnNode.name) + "\"");
                         dynamicInsnNode.name = mappings.get(dynamicInsnNode.name);
@@ -137,8 +129,7 @@ public class RemapUtil {
                         method.instructions.insertBefore(currentInsn, newDynamicInsnNode);
                         method.instructions.remove(currentInsn);
                     }
-                } else if (currentInsn instanceof LdcInsnNode && ((LdcInsnNode) currentInsn).cst instanceof String) { //String constants
-                    LdcInsnNode ldcInsnNode = (LdcInsnNode) currentInsn;
+                } else if (currentInsn instanceof LdcInsnNode ldcInsnNode && ((LdcInsnNode) currentInsn).cst instanceof String) {
                     String cst = (String) ldcInsnNode.cst;
 
                     if (mappings.containsKey(cst)) {
@@ -160,16 +151,16 @@ public class RemapUtil {
 
         String line;
         while ((line = reader.readLine()) != null) {
-            line = line.replaceAll("\\s+", " "); //Inline mappings
+            line = line.replaceAll("\\s+", " ");
             if (line.startsWith(" ")) line = line.substring(1);
 
-            String[] lines = line.split(" "); //Split line
+            String[] lines = line.split(" ");
 
 
             if (lines.length < 4 || lines[0].startsWith("c") || lines[0].startsWith("p") || lines[3].startsWith("<") || lines[2].equals(lines[3]))
                 continue;
 
-            map.put(lines[2], lines[3]); //Add appropriate mapping
+            map.put(lines[2], lines[3]);
         }
 
         reader.close();

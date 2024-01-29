@@ -1,31 +1,29 @@
-package dev.hunter.deobf;
+package me.mrbubbles.fabricremapper;
+
+import com.formdev.flatlaf.FlatDarkLaf;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 public class Gui {
 
     private static final int gap = 3;
     public JTextField outputField;
     public JFileChooser chooser;
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
-
     private Path input;
     private Path output;
     private String minecraftVersion;
-    private boolean decompile;
 
-    public static void displayMessage(String message, String title, int status) {
+    private static Path getCurrentPath() {
+        return Paths.get("").toAbsolutePath();
+    }
+
+    public void displayMessage(String message, String title, int status) {
         JPanel panel = new JPanel(new BorderLayout(gap, gap));
         panel.setBorder(BorderFactory.createEmptyBorder(gap, gap, gap, gap));
 
@@ -35,15 +33,13 @@ public class Gui {
         JOptionPane.showMessageDialog(null, panel, title, status);
     }
 
-    private static Path getCurrentPath() {
-        return Paths.get("").toAbsolutePath();
-    }
-
-    public Gui start() {
+    public void start() {
         System.out.println("Starting gui...");
 
+        FlatDarkLaf.setup();
+
         chooser = new JFileChooser(getCurrentPath().toFile());
-        JFrame frame = new JFrame("multi-decompiler-gui");
+        JFrame frame = new JFrame("Fabric Remapper");
         frame.setSize(400, 250);
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         int height = screenSize.height;
@@ -53,11 +49,9 @@ public class Gui {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         startButtons(frame);
-        return this;
     }
 
-    private synchronized void startButtons(JFrame frame) {
-        executor.execute(() -> {
+    private void startButtons(JFrame frame) {
             JPanel panel = new JPanel(new GridBagLayout());
             GridBagConstraints c = new GridBagConstraints();
             c.insets = new Insets(gap, gap, gap, gap);
@@ -132,12 +126,33 @@ public class Gui {
             outputChooser.addActionListener((event) -> output = handleInputChooserAction(outputField, output));
             panel.add(outputChooser, c);
 
-            JCheckBox decompileCheckBox = new JCheckBox("Decompile", false);
+        JLabel minecraftVersionLabel = new JLabel("Minecraft version: ");
             c.gridx = 0;
             c.gridy = 2;
-            c.anchor = GridBagConstraints.LINE_END;
-            decompileCheckBox.addActionListener((event) -> decompile = decompileCheckBox.isSelected());
-            panel.add(decompileCheckBox, c);
+        c.anchor = GridBagConstraints.LINE_START;
+        panel.add(minecraftVersionLabel, c);
+
+        JTextField minecraftVersionField = new JTextField("", gap);
+        c.gridx = 1;
+        c.gridy = 2;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        minecraftVersionField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                minecraftVersion = minecraftVersionField.getText();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                minecraftVersion = minecraftVersionField.getText();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                minecraftVersion = minecraftVersionField.getText();
+            }
+        });
+        panel.add(minecraftVersionField, c);
 
             JButton deobfuscateButton = new JButton("Deobfuscate");
             c.gridx = 1;
@@ -145,9 +160,9 @@ public class Gui {
             c.fill = GridBagConstraints.CENTER;
             deobfuscateButton.addActionListener((event) -> {
                 try {
-                    Main.remap(input, output, minecraftVersion, this.decompile);
+                    Main.remap(input, output, minecraftVersion);
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    Main.print("Error during remapping: " + e.getMessage(), true);
                 }
             });
 
@@ -155,7 +170,6 @@ public class Gui {
 
             frame.add(panel);
             frame.setVisible(true);
-        });
     }
 
     private Path handleInputChooserAction(JTextField field, Path originalField) {
