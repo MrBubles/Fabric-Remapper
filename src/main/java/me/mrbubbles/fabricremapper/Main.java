@@ -25,11 +25,11 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         if (System.console() != null) {
-            mainConsole(args);
+            start(args);
         } else (gui = new Gui()).start();
     }
 
-    private static void mainConsole(String[] args) throws Exception {
+    private static void start(String[] args) throws Exception {
         OptionParser optionParser = new OptionParser();
 
         OptionSpec<String> inputArg = optionParser.accepts("input").withRequiredArg().ofType(String.class);
@@ -97,17 +97,17 @@ public class Main {
 
         if (output.toFile().exists()) output.toFile().delete();
 
-        try {
-            TinyRemapper remapper = TinyRemapper.newRemapper()
-                    .withMappings(TinyUtils.createTinyMappingProvider(mappingsPath, "intermediary", "named"))
-                    .renameInvalidLocals(true)
-                    .rebuildSourceFilenames(true)
-                    .ignoreConflicts(true)
-                    .keepInputData(true)
-                    .skipLocalVariableMapping(true)
-                    .ignoreFieldDesc(true)
-                    .build();
+        TinyRemapper remapper = TinyRemapper.newRemapper()
+                .withMappings(TinyUtils.createTinyMappingProvider(mappingsPath, "intermediary", "named"))
+                .renameInvalidLocals(true)
+                .rebuildSourceFilenames(true)
+                .ignoreConflicts(true)
+                .keepInputData(true)
+                .skipLocalVariableMapping(true)
+                .ignoreFieldDesc(true)
+                .build();
 
+        try {
             OutputConsumerPath outputConsumer = new OutputConsumerPath(output);
             outputConsumer.addNonClassFiles(input);
             remapper.readInputs(input);
@@ -126,7 +126,7 @@ public class Main {
         try {
             Map<String, String> mapping = RemapUtil.getMappings(mappingsTiny2);
 
-            RemapUtil.remapJar(output, mapping);
+            RemapUtil.remapJar(output, remapper, mapping);
         } catch (IOException e) {
             print("Error during obtaining Tiny v2 mappings: " + e.getMessage(), true);
         }

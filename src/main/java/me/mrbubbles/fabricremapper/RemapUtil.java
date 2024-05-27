@@ -1,8 +1,13 @@
 package me.mrbubbles.fabricremapper;
 
+import net.fabricmc.accesswidener.AccessWidenerReader;
+import net.fabricmc.accesswidener.AccessWidenerRemapper;
+import net.fabricmc.accesswidener.AccessWidenerWriter;
+import net.fabricmc.tinyremapper.TinyRemapper;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.tree.*;
 
 import java.io.*;
@@ -19,7 +24,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class RemapUtil {
-    public static void remapJar(Path outputJar, Map<String, String> mappings) throws IOException {
+    public static void remapJar(Path outputJar, TinyRemapper remapper, Map<String, String> mappings) throws IOException {
         Path tempOutputJar = Paths.get(outputJar.toString() + "_temp");
 
         try (ZipInputStream inputZip = new ZipInputStream(Files.newInputStream(outputJar));
@@ -32,13 +37,15 @@ public class RemapUtil {
                 if (!entryName.endsWith(".class")) {
                     tempOutputZip.putNextEntry(new ZipEntry(entryName));
                     byte[] buffer = readStream(inputZip);
+                    if (entryName.endsWith(".accesswidener")) {
+                        buffer = remapAccessWidener(buffer, remapper.getRemapper(), mappings);
+                    }
                     tempOutputZip.write(buffer);
                     tempOutputZip.closeEntry();
                     continue;
                 }
 
-                byte[] classBytes = readStream(inputZip);
-                byte[] remappedBytes = remapClass(classBytes, mappings);
+                byte[] remappedBytes = remapClass(readStream(inputZip), mappings);
 
                 tempOutputZip.putNextEntry(new ZipEntry(entryName));
                 tempOutputZip.write(remappedBytes);
@@ -61,6 +68,34 @@ public class RemapUtil {
 
         buffer.flush();
         return buffer.toByteArray();
+    }
+
+
+    private static byte[] remapAccessWidener(byte[] accessWidenerBytes, Remapper remapper, Map<String, String> mappings) {
+        AccessWidenerWriter writer = new AccessWidenerWriter();
+        AccessWidenerRemapper remappingDecorator = new AccessWidenerRemapper(writer, remapper, "intermediary", "named");
+        AccessWidenerReader accessWidenerReader = new AccessWidenerReader(remappingDecorator);
+        accessWidenerReader.read(accessWidenerBytes, "intermediary");
+
+        byte[] newAccessWidenerBytes = writer.write();
+        String accessWidener = new String(newAccessWidenerBytes, StandardCharsets.UTF_8);
+        String[] lines = accessWidener.split("\n");
+        StringBuilder result = new StringBuilder();
+
+        result.append(lines[0].replace('\t', ' ')).append("\n\n");
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i];
+            String[] parts = line.split("\t");
+            for (String part : parts) {
+                if (mappings.containsKey(part)) {
+                    line = line.replace(part, mappings.get(part));
+                }
+            }
+
+            result.append(line.replace('\t', ' ')).append("\n");
+        }
+
+        return result.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     private static byte[] remapClass(byte[] classBytes, Map<String, String> mappings) {
